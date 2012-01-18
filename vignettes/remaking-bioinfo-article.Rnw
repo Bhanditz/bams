@@ -1,0 +1,53 @@
+\documentclass{article}
+\usepackage{fullpage}
+%\VignetteIndexEntry{Remaking the Bioinformatics article}
+\begin{document}
+
+\title{Remaking the Bioinformatics article}
+\author{Toby Dylan Hocking}
+\maketitle
+
+To redo the analysis from the article,
+first install the bams
+package and its dependencies:
+
+<<eval=FALSE,echo=TRUE>>=
+options(repos=c(getOption("repos"),"http://www.bioconductor.org/packages/release/bioc"))
+install.packages("bams",dep=TRUE)
+@ 
+
+All of the article source files can then be found in the
+\texttt{bams/article} directory, which you can find by
+executing the following code in R:
+<<eval=FALSE>>=
+system.file("article",package="bams")
+@ 
+
+Normally the file \texttt{bams/article/zzz.stats.RData} should be
+present. This file saves the results of running all the smoothing
+algorithms on all the copy number profiles, then quantifying which
+smoothing models are consistent with the annotation data. To remake
+the article starting from these saved results, simply type
+\texttt{make} in the \texttt{bams/article} directory, which should
+create \texttt{HOCKING-model-selection-breakpoint-annotations.pdf}
+
+If you are interested in redoing the smoothing algorithms, you can do
+so by removing the \texttt{zzz.stats.RData} file as well. Then, when
+you type \texttt{make}, the code in
+\texttt{bams/article/make.all.stats.R} will be used to first remake a
+\texttt{smooth} directory (by default in your home directory) which
+will contain results of the smoothing models for each profile. But
+this will take A LONG TIME.
+
+To speed up this process, you can redo the smoothing models for each
+profile in parallel, if you have access to a cluster with the command
+line program \texttt{qsub}.  Try installing the \texttt{bams} package
+on the cluster, then executing the code in
+\texttt{bams/article/smoothing-commands.R}, which should use the
+cluster to make a \texttt{smooth} directory with result files. Then
+from the cluster, execute the code in
+\texttt{bams/article/make.all.stats.R} to remake zzz.stats.RData, copy
+this file to the \texttt{bams/article} directory, and type
+\texttt{make}.
+
+\end{document}

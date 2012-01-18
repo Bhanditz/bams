@@ -1,0 +1,168 @@
+unseen.profile.error <- function
+### Do n/t-fold cross-validation to estimate the error of global
+### models with a small training set.
+(stats,
+### list with arrays for errors, false.positive, and false.negative
+ prof.per.train
+### t = approximate number of annotated profiles per training set.
+ ){
+  stat.names <- c("errors","false.positive","false.negative")
+  nparam <- dim(stats$errors)[1]
+  nprof <- dim(stats$errors)[2]
+  narms <- dim(stats$errors)[3]
+  nfolds <- floor(nprof/prof.per.train)
+  test.error <- matrix(NA,nfolds,length(stat.names))
+  colnames(test.error) <- stat.names
+  fold <- sample(rep(1:nfolds,l=nprof))
+  for(f in 1:nfolds){
+    test.fold <- fold != f
+    train.fold <- !test.fold
+    train.err <- rep(NA,nparam) ## global model
+    for(j in 1:nparam){
+      train.err[j] <- mean(stats$errors[j,train.fold,],na.rm=TRUE)
+    }
+    global.picked <- pick.best.index(train.err)
+    for(sn in stat.names){
+      test.error[f,sn] <-
+        mean(stats[[sn]][global.picked,test.fold,],na.rm=TRUE)
+    }
+    num.normal <- sum(stats$normal.anns[test.fold,])
+    num.breakpoint <- sum(stats$breakpoint.anns[test.fold,])
+    num.total <- num.normal+num.breakpoint
+    FP <- test.error[f,"false.positive"]*num.total
+    if(round(FP)-FP>1e-5){
+      stop("FP not integral!")
+    }
+    test.error[f,"false.positive"] <- FP/num.normal
+    test.error[f,"false.negative"] <-
+      test.error[f,"false.negative"]*num.total/num.breakpoint
+  }
+  test.error
+### matrix of estimated test errors, nfolds x 3
+}
+
+geom_tallrect <- function
+### ggplot2 geom with xmin and xmax aesthetics that covers the entire
+### y range.
+(mapping=NULL,
+ data=NULL,
+ stat="identity",
+ position="identity",
+ ...){
+  require(ggplot2)
+  GeomTallRect <- proto(GeomRect,{
+    required_aes <- c("xmin", "xmax")
+    draw <- draw_groups <- function(.,data,scales,coordinates,
+                                    ymin=0,ymax=1,...){
+      ymin <- unit(ymin,"npc")
+      ymax <- unit(ymax,"npc")
+      with(coordinates$transform(data, scales),ggname(.$my_name(), {
+        rectGrob(xmin, ymin, xmax - xmin, ymax-ymin,
+                 default.units = "native", just = c("left", "bottom"), 
+                 gp=gpar(
+                   col=colour, fill=alpha(fill, alpha), 
+                   lwd=size * .pt, lty=linetype, lineend="butt"
+                   )
+                 )
+      }))
+    }
+  })
+  GeomTallRect$new(mapping = mapping, data = data, stat = stat,
+                   position = position, ...)
+}
+
+pick.best.index <- function
+### Minimizer for local models, described in article section 2.3
+### "Picking the optimal model"
+(err
+### Vector of errors to minimize.
+ ){
+  nparam <- length(err)
+  candidates <- which(err==min(err))
+  if(length(err)==1)return(candidates)
+  if(nparam %in% candidates && 1 %in% candidates){
+    cat("Warning: non-convex error profile\n")
+    print(as.numeric(err))
+    d <- diff(candidates)>1
+    if(any(d)){
+      which(d)[1]
+    }else{
+      max(candidates)
+    }
+  }else if(1 %in% candidates){
+    max(candidates)
+  }else if(nparam %in% candidates){
+    min(candidates)
+  }else {
+    st <- abs(median(candidates)-candidates)
+    candidates[which.min(st)]
+  }
+### Integer index of the minimal error.
+}
+
+estimate.test.error <- function
+### Do leave-one-out cross-validation on chromosome arms.
+(stats
+### Named list with arrays errors, false.positive, false.negative,
+### each of dim nparam x nprof x nfolds.
+ ){
+  stats <- stats[c("errors","false.positive","false.negative")]
+  nparam <- dim(stats$errors)[1]
+  nprof <- dim(stats$errors)[2]
+  nfolds <- dim(stats$errors)[3]
+  stat.names <- names(stats)
+  local.loo <- matrix(NA,length(stats),nfolds)
+  hybrid.loo <- matrix(NA,length(stats),nfolds)
+  global.loo <- matrix(NA,length(stats),nfolds)
+  rownames(global.loo) <- stat.names
+  rownames(hybrid.loo) <- stat.names
+  rownames(local.loo) <- stat.names
+  for(fold in 1:nfolds){
+
+    train.err <- rep(NA,nparam) ## global model
+    for(j in 1:nparam){
+      train.err[j] <- mean(stats$errors[j,,-fold],na.rm=TRUE)
+    }
+    ## save for hybrid approach
+    global.train.err <-
+      data.frame(train.err,param=1:length(train.err))
+    global.picked <- pick.best.index(train.err)
+    for(sn in stat.names){
+      global.loo[sn,fold] <-
+        mean(stats[[sn]][global.picked,,fold],na.rm=TRUE)
+    }
+
+    ind.stats <- matrix(NA,nprof,length(stats))
+    colnames(ind.stats) <- stat.names
+    for(i in 1:nprof){ ## hybrid models
+      train.err <-
+        apply(stats$errors[,i,-fold,drop=FALSE],1,sum,na.rm=TRUE)
+      is.min <- train.err == min(train.err)
+      global.subset <- global.train.err[is.min,]
+      hybrid.picked <-
+        with(global.subset,param[which.min(train.err)])
+      for(sn in stat.names){ ## store test err for picked model
+        ind.stats[i,sn] <- stats[[sn]][hybrid.picked,i,fold]
+      }
+    }
+    hybrid.loo[,fold] <- colMeans(ind.stats,na.rm=TRUE)
+    
+    ind.stats <- matrix(NA,nprof,length(stats))
+    colnames(ind.stats) <- stat.names
+    for(i in 1:nprof){ ## local models
+      train.err <-
+        apply(stats$errors[,i,-fold,drop=FALSE],1,sum,na.rm=TRUE)
+      local.picked <- pick.best.index(train.err)
+      for(sn in stat.names){ ## store test err for picked model
+        ind.stats[i,sn] <- stats[[sn]][local.picked,i,fold]
+      }
+    }
+    local.loo[,fold] <- colMeans(ind.stats,na.rm=TRUE)
+    
+  }
+  list(local=local.loo,
+       hybrid=hybrid.loo,
+       global=global.loo)
+### Named list with elements local, hybrid, global, each a 3 x nfolds
+### matrix.
+}
