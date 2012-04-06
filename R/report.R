@@ -49,14 +49,15 @@ geom_tallrect <- function
  stat="identity",
  position="identity",
  ...){
-  require(ggplot2)
-  GeomTallRect <- proto(GeomRect,{
+  require(proto)
+  require(grid)
+  GeomTallRect <- proto(ggplot2:::GeomRect,{
     required_aes <- c("xmin", "xmax")
     draw <- draw_groups <- function(.,data,scales,coordinates,
                                     ymin=0,ymax=1,...){
       ymin <- unit(ymin,"npc")
       ymax <- unit(ymax,"npc")
-      with(coordinates$transform(data, scales),ggname(.$my_name(), {
+      with(coord_transform(coordinates, data, scales),ggname(.$my_name(), {
         rectGrob(xmin, ymin, xmax - xmin, ymax-ymin,
                  default.units = "native", just = c("left", "bottom"), 
                  gp=gpar(
@@ -81,7 +82,7 @@ pick.best.index <- function
   candidates <- which(err==min(err))
   if(length(err)==1)return(candidates)
   if(nparam %in% candidates && 1 %in% candidates){
-    cat("Warning: non-convex error profile\n")
+    cat("Warning: strange error profile, picking something near the center\n")
     print(as.numeric(err))
     d <- diff(candidates)>1
     if(any(d)){

@@ -28,7 +28,7 @@ for(algorithm in names(all.stats)){
   roc <- rbind(roc,newroc)
 }
 library(lattice)
-xyplot(TPR~FPR|algorithm,roc,type="o")
+##xyplot(TPR~FPR|algorithm,roc,type="o")
 no.tuning <- names(all.stats)[sapply(all.stats,function(L)dim(L$errors)[1])==1]
 curves <- subset(roc,!algorithm%in%no.tuning)
 ## Need to reorder factor to get different looking colors in the same
@@ -55,9 +55,9 @@ colordots$vjust <- 1.1
 colordots$label <- as.character(colordots$algorithm)
 change <- list(hjust=c(dnacopy.alpha=1.1,glad.haarseg=0.5,flsa=-0.5,
                  glad.MinBkpWeight=0.5,dnacopy.default=0.9,
-                 cghseg.mBIC=1,cghseg.k=0),
+                 cghseg.mBIC=1,cghseg.k=0.05),
                vjust=c(dnacopy.alpha=0,glad.haarseg=-3,
-                 glad.MinBkpWeight=5,dnacopy.default=1.7,cghseg.k=-5.3),
+                 glad.MinBkpWeight=5,dnacopy.default=1.7,cghseg.k=-4.7),
                label=c(flsa.norm=" flsa\nnorm",
                  dnacopy.default=" dnacopy\ndefault"))
 for(coln in names(change)){
@@ -68,29 +68,30 @@ for(coln in names(change)){
   }
 }
 
+source("algo.colors.R")
 library(ggplot2)
+library(grid)
 dotsize <- 6
+text.cex <- 4
 p <- ggplot(roc,aes(FPR,TPR))+
-  facet_grid(~class)+
+  facet_grid(.~class)+
   geom_path(aes(colour=algorithm),data=curves,lwd=1.5)+
   geom_path(aes(group=algorithm),data=curves,lty="dashed")+
   geom_point(data=dots,fill="black",colour="black",pch=21,size=dotsize)+
   geom_point(fill=NA,pch=21,data=colordots,size=dotsize)+
   geom_text(aes(colour=algorithm,label=label,hjust=hjust,vjust=vjust),
-            data=colordots)+
-  geom_text(aes(label=label,hjust=hjust,vjust=vjust),data=dots)+
+            data=colordots,cex=text.cex)+
+  geom_text(aes(label=label,hjust=hjust,vjust=vjust),data=dots,
+            cex=text.cex)+
   coord_cartesian(xlim=c(0,0.5),ylim=c(0.5,1))+
   scale_x_continuous("False positive rate = probability(predict breakpoint | normal)",
                      breaks=seq(0,0.4,by=0.1))+
-  scale_y_continuous(paste("True positive rate =",
-                           "probability(predict breakpoint | breakpoint)"),
+  scale_y_continuous(paste("True positive rate =\n",
+                           "probability(predict breakpoint | breakpoint)",
+                           sep=""),
                      breaks=seq(0.5,1,by=0.1))+
-  scale_fill_discrete(legend=FALSE)+
   theme_bw()+
-  opts(axis.title.x=theme_text(vjust = 0),
-       panel.margin=unit(0.2,"lines"))+
-  scale_colour_discrete(legend=FALSE)
-sc <- 1.25
-pdf("figure-roc.pdf",width=19.2/sc,height=6.88/sc)
+  scale_colour_manual(values=algo.colors,guide="none")
+pdf("figure-roc.pdf",width=10,height=4)
 print(p)
 dev.off()

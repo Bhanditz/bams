@@ -39,6 +39,7 @@ errs$algorithm <- factor(errs$algorithm,alg.order)
 picked$algorithm <- factor(picked$algorithm,alg.order)
 min.labs$algorithm <- factor(min.labs$algorithm,alg.order)
 library(ggplot2)
+library(grid)
 library(RColorBrewer)
 cols <- brewer.pal(7,"Set1")
 p <- ggplot(errs,aes(log10(parameter),percent))+
@@ -60,12 +61,11 @@ p <- ggplot(errs,aes(log10(parameter),percent))+
   scale_linetype_manual(values=c(errors=1,false.positive=2,false.negative=3))+
   xlab("log10(smoothing parameter)")+
   theme_bw()+ # bioinformatics
-  opts(axis.title.x=theme_text(vjust = 0),
-       panel.margin=unit(0,"lines"))+
+  opts(panel.margin=unit(0,"lines"))+
   ylab("percent incorrectly predicted annotations in training set")
 pdf("figure-learning-curves.pdf",height=7.4,width=12)
 print(p)
 ##grid.text("log10(smoothing parameter)",0.4,0,vjust=-1)
-grid.text("<- more breakpoints",0.1,0,hjust=0,vjust=-1)
-grid.text("fewer breakpoints ->",0.8,0,hjust=1,vjust=-1)
+grid.text("<- more breakpoints",0.2,0,hjust=0,vjust=-1)
+grid.text("fewer breakpoints ->",0.7,0,hjust=1,vjust=-1)
 dev.off()

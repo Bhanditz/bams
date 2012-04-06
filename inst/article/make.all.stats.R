@@ -23,7 +23,7 @@ print(count.vecs[not.finished])
 ## assume max is done...
 done.mat <- apply(count.mat,1,function(x)x==max(x))
 processed.cids <- rownames(done.mat)[apply(done.mat,1,all)]
-data(neuroblastoma,package="bams")
+data(neuroblastoma,package="neuroblastoma")
 all.cids <- levels(neuroblastoma$profiles$profile.id)
 to.process <- all.cids[!all.cids %in% processed.cids]
 print(count.mat[not.finished,to.process])

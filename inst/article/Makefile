@@ -1,6 +1,7 @@
 DOC=HOCKING-model-selection-breakpoint-annotations
 
-${DOC}.pdf: ${DOC}.tex refs.bib table-annotation-chrom-counts.tex table-generalization-error-global-models.tex figure-smoothing.pdf figure-learning-curves.pdf  figure-kinetics.pdf table-error-on-unseen-profiles.tex table-annotation-profile-counts.tex bioinfo.cls natbib.bst figure-roc.pdf
+${DOC}.pdf: ${DOC}.tex refs.bib table-annotation-chrom-counts.tex table-generalization-error-global-models.tex figure-smoothing.pdf figure-learning-curves.pdf  figure-kinetics.pdf table-error-on-unseen-profiles.tex table-annotation-profile-counts.tex bioinfo.cls natbib.bst figure-roc.pdf algo.colors.tex
+	rm -f ${DOC}.aux
 	pdflatex ${DOC}
 	bibtex ${DOC}
 	pdflatex ${DOC}
@@ -18,7 +19,10 @@ table-error-on-unseen-profiles.tex: table-error-on-unseen-profiles.R zzz.stats.R
 table-generalization-error-global-models.tex: table-generalization-error-global-models.R zzz.stats.RData 
 	R --vanilla < table-generalization-error-global-models.R
 
-figure-roc.pdf: figure-roc.R zzz.stats.RData
+algo.colors.tex: algo.colors.R make.algo.colors.tex.R
+	R --vanilla < make.algo.colors.tex.R
+
+figure-roc.pdf: figure-roc.R algo.colors.R zzz.stats.RData
 	R --vanilla < figure-roc.R
 
 figure-smoothing.pdf: figure-smoothing.R 
@@ -27,7 +31,7 @@ figure-smoothing.pdf: figure-smoothing.R
 figure-learning-curves.pdf: figure-learning-curves.R zzz.stats.RData
 	R --vanilla < figure-learning-curves.R
 
-figure-kinetics.pdf: figure-kinetics.R zzz.stats.RData 
+figure-kinetics.pdf: figure-kinetics.R algo.colors.R zzz.stats.RData 
 	R --vanilla < figure-kinetics.R
 
 zzz.stats.RData: make.all.stats.R

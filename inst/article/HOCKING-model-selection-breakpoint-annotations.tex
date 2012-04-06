@@ -1,4 +1,5 @@
 \documentclass{bioinfo}
+\usepackage{xcolor}
 \usepackage{multirow}
 \usepackage{textcomp}
 %slashbox for tables with \ in upper left for row and column dimnames
@@ -12,6 +13,7 @@
 \newcommand{\model}[1]{#1}
 \newcommand{\code}[1]{\texttt{#1}}
 \newcommand{\package}[1]{\texttt{#1}}
+\input{algo.colors}
 
 % CATEGORY: Gene expression --- Original Paper
 
@@ -118,8 +120,8 @@ data.
 Copy number profiles can be annotated using a GUI:\\
 \verb+http://pypi.python.org/pypi/annotate_regions+\\
 The annotated neuroblastoma copy number profiles
-are available in R: \code{data(neuroblastoma,package="bams")}\\
-\verb+http://cran.r-project.org/web/packages/bams+
+are available in R: \code{data(neuroblastoma,package="neuroblastoma")}\\
+\verb+http://cran.r-project.org/web/packages/neuroblastoma+
 
 \section{Contact:}
 % Full email address to be given, preferably an institution email
@@ -140,14 +142,15 @@ accurate predictive model of clinical outcome for these tumors, we
 must first accurately detect the precise location of each breakpoint.
 
 
-In recent years, array comparative genomic hybridization (aCGH) and
-single nucleotide polymorphism (SNP) microarrays have been developed
-as genome-wide assays for CNAs. In parallel, there have been many new
-mathematical models proposed to smooth the noisy signals from these
-microarray assays in order to recover the CNAs
-\citep{glad,cghseg,dnacopy,cghFLasso,haarseg,fused-lasso-path}.  Each model
-has different assumptions about the data, and it is not obvious to
-decide which model is appropriate for a given data set.
+In recent years, array comparative genomic hybridization (aCGH)
+microarrays have been developed as genome-wide assays for CNAs, using
+the fact that microarray logratio is proportional to DNA copy number
+\citep{pinkel}. In parallel, there have been many new mathematical
+models proposed to smooth the noisy signals from these microarray
+assays in order to recover the CNAs
+\citep{glad,statistical-approach,dnacopy,cghFLasso,haarseg,fused-lasso-path}.
+Each model has different assumptions about the data, and it is not
+obvious to decide which model is appropriate for a given data set.
 
 Furthermore, most models have parameters that control the degree
 of smoothness. Varying these smoothing parameters will vary the number
@@ -194,20 +197,26 @@ which smoothing algorithms are appropriate for which data.
 
 The third contribution of this paper is a systematic, quantitative
 comparison of the accuracy of several common smoothing algorithms on a
-new database of annotated neuroblastoma copy number profiles, which we
-give in Section~\ref{results}. For simulated data, \cite{compare}
-compared the breakpoint detection ability of GLAD, DNAcopy, and a
-hidden Markov model by examining false positive and false negative
-rates. But there are no previous studies that quantitatively compare
-smoothing models on real data. This is because quantifying smoothing
-model accuracy using annotated region data is a new idea, and so we
-make the annotated neuroblastoma copy number profiles available as a
-benchmark for the community to test new algorithms on real data.
+new database of 575 annotated neuroblastoma copy number profiles,
+which we give in Section~\ref{results}. For simulated data,
+\cite{compare} compared GLAD, DNAcopy, and a hidden Markov model by
+examining false positive and false negative rates for detection of a
+breakpoint at a specific location. \cite{cnvfinder} used quantitative
+PCR to validate the CNA-detection accuracy of their \model{CNVfinder}
+method on real data. But quantitative PCR is low-throughput and
+costly, and in real copy number profiles the locations of breakpoints
+are unknown. So in fact there are no previous studies that
+quantitatively compare breakpoint detection of smoothing models on
+real data. In this paper we propose to use annotated regions instead
+of precise breakpoint locations for quantifying smoothing model
+accuracy, and we make available 575 new annotated neuroblastoma copy
+number profiles as a benchmark for the community to test new
+algorithms on real data.
 
 Several authors have recently proposed methods for so-called joint
 segmentation of multiple CGH profiles, under the hypothesis that each
 profile shares breakpoints in the exact same location
-\citep{jp-nips,guillem-joint,nbc}. These models are not useful in our
+\citep{jp-nips,nbc}. These models are not useful in our
 setting, since we assume that breakpoints do not occur in the exact
 same locations across copy number profiles. Instead, we focus on the
 case of learning a model that will accurately detect an unknown number
@@ -314,7 +323,8 @@ $k$ as
   \end{cases}
 \end{equation}
 which can be determined by visual inspection of the scatterplot of
-logratio measurements $y$ versus position $p$.
+logratio measurements $y$ versus position $p$, as in
+Figure~\ref{figure-smoothing}.
 
 The idea for model selection is to choose $\lambda$ such that the
 predicted breakpoints $\hat B_i^\lambda$ agree with the annotations
@@ -386,15 +396,13 @@ Equation~\ref{eq:globalerror}.
 
 \label{quantify}
 
-\subsection{Picking the optimal model}
+\subsection{Picking the optimal degree of smoothness}
 
-We assume that $\lambda$ is a tuning parameter that will be directly
-related to the number of breakpoints observed in the smoothed
-signal. In other words, this training procedure requires that the
-number of breakpoints predicted by the algorithm is monotonic in
-$\lambda$, which is usually the case.
+We assume that $\lambda$ is a tuning parameter that is monotonic in
+the number of breakpoints, which is the case for the models considered
+in this paper.
 
-Fix a set of smoothing parameters $\lambda\in\Lambda$, and run the
+Fix a set of smoothing parameters, and run the
 smoothing algorithm with each of these parameters. Intuitively, we
 should pick the value of $\lambda$ that maximizes agreement with
 annotation data. For global models, we attempt to minimize
@@ -460,11 +468,11 @@ and these cases are illustrated in Figure
 % But in fact we are really concerned with the test error or ability of
 % the model to detect breakpoints in un-annotated regions.
 The second contribution of this paper are cross-validation procedures
-that estimate the generalization error of the trained
-smoothing models. The main idea is to use a training set of
-annotations to learn the parameter of a smoothing model, then quantify
-the error of the model using a test set of annotations. Notably, this
-enables quantitative comparison of smoothing models on copy number
+that estimate the generalization error of the trained smoothing
+models. The main idea is to use a training set of annotations to learn
+the parameter of a smoothing model, then quantify the error of the
+model using a test set of annotations. Notably, this enables
+quantitative comparison of breakpoint detection models on copy number
 profiles from real microarray data.
 
 \begin{figure*}[b]
@@ -492,7 +500,7 @@ profiles from real microarray data.
   Counts of normal and breakpoint annotations 
   in the neuroblastoma data set, 
   conditional on region. Min and max limits of each region 
-  are shown in base pairs,
+  are shown in mega base pairs,
   in reference to the Hg19 Human genome assembly.}
 \end{table}
 %TODO http://www.oxfordjournals.org/our_journals/bioinformatics/for_authors/general.html
@@ -559,11 +567,12 @@ is then the average model error over all folds.
 \subsection{Neuroblastoma copy number data}\label{data}
 
 We analyzed a new data set of $n=575$ copy number profiles from aCGH
-and SNP microarray experiments on neuroblastoma tumors taken from
-patients at diagnosis at the Institut Curie. In this article we
-analyze the normalized logratio
-measurements of these microarrays, which we have made available in R
-package \package{bams} on CRAN.
+microarray experiments on neuroblastoma tumors taken from patients at
+diagnosis. The microarrays were produced using various technologies,
+so do not all have the same probes. The number of probes per
+microarray varies from 1719 to 71340. In this article we analyzed the
+normalized logratio measurements of these microarrays, which we have
+made available in R package \package{neuroblastoma} on CRAN.
 
 
 
@@ -581,11 +590,10 @@ annotations in Equation~\ref{eq:bik}.
 Table~\ref{table-annotation-chrom-counts} shows counts of annotations
 per region, and Table~\ref{table-annotation-profile-counts} shows
 counts of annotations per profile. Some profiles have less than 6
-annotations since regions for which breakpoints could not be
-determined by visual inspection were not included in the analysis. The
-annotations are shown as colored rectangles in
-Figure~\ref{figure-smoothing}, and are available in R package
-\package{bams} on CRAN.
+annotations since we excluded regions where presence of breakpoints
+could not be determined by visual inspection. The annotations are
+shown as colored rectangles in Figure~\ref{figure-smoothing}, and are
+available in R package \package{neuroblastoma} on CRAN.
 
 
 
@@ -602,7 +610,7 @@ on CRAN, R-Forge, or Bioconductor \citep{R,R-Forge,Bioconductor}.
 We used version 1.03 of the \package{flsa} package from CRAN to
 calculate the Fused Lasso Signal Approximator as described by
 \cite{fused-lasso-path}. The FLSA solves the following optimization
-problem:
+problem for each chromosome:
 \begin{equation}
   \label{eq:flsa}
   \hat y^\lambda = 
@@ -640,15 +648,17 @@ the \model{glad.haarseg} model, we used the
 \code{smoothfunc="haarseg"} option and varied the \texttt{breaksFdrQ}
 parameter to fit the wavelet smoothing model of \cite{haarseg}.
 
-We used version 0.01 of the \package{cghseg} package from
-R-Forge to fit the maximum-likelihood piecewise constant smoothing
-model of \cite{cghseg}. We used the \code{segmeanCO} function with
-\code{kmax=20} to obtain the maximum-likelihood piecewise constant
-smoothing model $\hat y^k$ for $k= 1, \dots, 20$ segments.
+We used version 0.01 of the \package{cghseg} package from R-Forge to
+fit the maximum-likelihood piecewise constant smoothing model of
+\cite{statistical-approach} for each chromosome using pruned dynamic
+programming \citep{pruned-dp}. We used the \code{segmeanCO} function
+with \code{kmax=20} to obtain the maximum-likelihood piecewise
+constant smoothing model $\hat y^k$ for $k= 1, \dots, 20$ segments.
 \cite{lavielle2005} suggested penalizing $k$ breakpoints in a signal
 sampled at $d$ points using $\lambda k$, and varying $\lambda$ as a
 tuning parameter. We implemented this model selection criterion as the
-\model{cghseg.k} model, for which we define the optimal number of segments 
+\model{cghseg.k} model, for which we define the optimal number of
+segments
 \begin{equation}
   \label{eq:cghseg.k}
   k^*(\lambda) = 
@@ -686,9 +696,8 @@ package.
   false positive (FP), and false negative (FN) rates.
   Each line shows the performance of one of the models 
   described in Section~\ref{models}.
-  For models marked with an *asterisk,
-  there are no smoothness parameters that can be learned using annotations.
-  For the other models, global and local training procedures described in 
+  Models that have a smoothness parameter are shown with a colored square,
+  and global and local training procedures described in 
   Section~\ref{pick} were used to 
   learn smoothness parameters.
   The global error
@@ -802,8 +811,12 @@ estimated generalization error of $ 3.4\%$.
 We have proposed to train smoothing models using annotations
 determined by visual inspection of the copy number profiles. We have
 demonstrated that this approach allows quantitative comparison of
-smoothing models on real data, and gives an objective criterion for
-choosing the degree of smoothness.
+smoothing models on a new data set of 575 neuroblastoma copy number
+profiles. These data provide the first set of annotations that can be
+used for benchmarking the breakpoint detection ability of future
+algorithms. Finally, our annotation-based approach is quite useful in
+practice on real data, since it provides an objective criterion for
+choosing the parameter that controls the smoothness of the model.
 
 The clear drawback of annotation-based model selection is the time
 required to create the annotations. 
@@ -819,9 +832,17 @@ process by using a simple, portable, free software Python annotation
 GUI which is available as package \texttt{annotate\_regions} from the
 Python Package Index.
 
-% Also, from Figure~\ref{figure-kinetics}, it seems that the minimal
-% error in these data with the best models is about 5\%, which is
-% perhaps annotator-dependent.
+% Another potential criticism of our approach is that annotations
+% determined by visual inspection may not be consistent between
+% experts. In
+% any case, it is clear that our approach will favor algorithms that
+% capture breakpoints that agree with the annotator's visual definition
+% of a breakpoint.
+% To get to some more objective
+% criterion in the future, we could try to incoporate annotations from
+% several different annotators, then combine them by estimating some
+% annotator-specific false positive and false negative rates.
+
 
 In contrast with our results, in a previous work on
 automatic parameter tuning of smoothing models, \cite{penalized-cna}
@@ -849,23 +870,23 @@ chromosome, and results in lower error rates than the unscaled flsa
 algorithm. We are interested in investigating other parameterizations
 which could reduce the error even further.
 
-In this work we have characterized the performance of several common
-algorithms on a set of annotated neuroblastoma copy number profiles,
-but it will be interesting to apply annotation-based model training to
-other algorithms and data sets. In particular, the ordering of
-algorithms may change when we apply these procedures to data generated
-by different microarrays and annotators.
-% Another potential criticism of our annotation-based approach is that
-% the results may be biased depending on the annotator.
-However, it is clear that in any data set, our approach will favor
-algorithms that capture breakpoints that agree with the annotator's
-visual definition of a breakpoint.
-% To get to some more objective
-% criterion in the future, we could try to incoporate annotations from
-% several different annotators, then combine them by estimating some
-% annotator-specific false positive and false negative rates.
 
 
+\begin{figure}[b]
+  \centering
+  \includegraphics[width=\columnwidth]{figure-kinetics}
+  \caption{\label{figure-kinetics} Cross-validation was used to
+    estimate the generalization ability of the global models with
+    different sized training sets for several breakpoint detection
+    algorithms. For each training set size $t$, the profiles were
+    partitioned into training sets of approximately size $t$, then
+    were evaluated using the annotations from all the other
+    profiles. Results on these data indicate increasing accuracy (lines)
+    and decreasing standard deviation (shaded bands) as the training set
+    increases, with diminishing returns after approximately $t=10$,
+    indicated with a vertical black line, and shown in detail for all
+    algorithms in Table~\ref{table-error-on-unseen-profiles}. }
+\end{figure}
 
 
 
@@ -880,21 +901,15 @@ we will be interested in developing joint breakpoint detection and
 copy number calling models that directly use these annotation data as
 constraints or as part of the model likelihood.
 
-\begin{figure}[b]
-  \centering
-  \includegraphics[width=\columnwidth]{figure-kinetics}
-  \caption{\label{figure-kinetics} Cross-validation was used to
-    estimate the generalization error of the global models with
-    different sized training sets for several breakpoint detection
-    algorithms. For each training set size $t$, the profiles were
-    partitioned into training sets of approximately size $t$, then
-    were evaluated using the annotations from all the other
-    profiles. Results on these data indicate decreasing error (lines)
-    and standard deviation (shaded bands) as the training set
-    increases, with diminishing returns after approximately $t=10$,
-    indicated with a vertical black line, and shown in detail for all
-    algorithms in Table~\ref{table-error-on-unseen-profiles}. }
-\end{figure}
+It will be interesting to apply annotation-based model training to
+other algorithms and data sets.  In the annotations we analyzed,
+\model{cghseg.k} showed the best breakpoint detection, but another
+model may be selected with another expert's annotation of the neuroblastoma
+data. In future work, it will be interesting to see if our conclusions
+are robust to the annotator, and generalize to data from other tumor
+types. Furthermore, since next-generation sequencing data sets are
+becoming more common, we plan to use visual annotations to learn
+segmentation models for these data as well.
 
 
 \section*{Acknowledgements}
@@ -909,11 +924,13 @@ the paper.
 \input{table-error-on-unseen-profiles}
 \end{center}
 \caption{\label{table-error-on-unseen-profiles}
-  The $n/10$-fold cross-validation protocol was used to estimate
-  error, false positive (FP), and false negative (FN) rates, 
-  shown in percent.
-  Algorithms with an *asterisk have no smoothness parameters, 
-  but the smoothness parameter of the other algorithms was
+  The $n/t$-fold cross-validation protocol was used to estimate
+  error, false positive (FP), and false negative (FN) rates.
+  Mean and standard deviation (sd) over
+  $\lfloor n/t\rfloor =57$ folds are shown as percents.
+  Squares show the same colors as in the figures, 
+  and are absent for models that have no smoothness parameters.
+  The smoothness parameter was
   chosen using annotations from approximately $t=10$ profiles. 
 }
 \end{table}
@@ -968,6 +985,7 @@ G.S.]; and the French Anti-Cancer League.
 
 \paragraph{Conflict of interest\textcolon} None declared.
 
+\newpage
  \bibliographystyle{natbib}
 
 \bibliography{refs}

@@ -5,6 +5,7 @@ for(algo in names(all.stats)){
   set.seed(2)
   all.est[[algo]] <- unseen.profile.error(all.stats[[algo]],10)
 }
+nrow(all.est[[1]]) ## number of folds
 ## TODO: Correct FP/FN. DONT divide by total number of annotations!
 errtab <- t(sapply(all.est,colMeans))
 errtab <- errtab[order(errtab[,1]),]
@@ -16,13 +17,21 @@ errsd <- do.call(cbind,lapply(colnames(errtab),function(i){
 }))
 colnames(errsd)[c(3,5)] <- c("FP","FN")
 library(xtable)
-no.tuning <- rownames(errsd)%in%
-  c("glad.default","dnacopy.default","cghseg.mBIC","cghFLasso")
-rownames(errsd)[no.tuning] <- paste("*",rownames(errsd)[no.tuning],sep="")
+
+## add colored squares
+square.inches <- "0.08"
+rownames(errsd) <-
+  sprintf("%s \\textcolor{%s.color}{\\rule{%sin}{%sin}}",
+          rownames(errsd),
+          rownames(errsd),
+          square.inches,
+          square.inches)
+
 xt <- xtable(data.frame(model=rownames(errsd),errsd*100),
              digits=1,align="rrrrrrrr")
 colnames(xt)[c(3,5,7)] <- "sd"
-tex <- print(xt,floating=FALSE,include.rownames=FALSE)
+tex <- print(xt,floating=FALSE,include.rownames=FALSE,
+             sanitize.text.function=identity)
 ##tex <- sub("cghseg.mBIC","\\\\hline cghseg.mBIC",tex)
 FR <- list(c("hline","toprule"),
            c("hline","midrule"),

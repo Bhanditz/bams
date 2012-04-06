@@ -1,4 +1,4 @@
-data(neuroblastoma,package="bams")
+data(neuroblastoma,package="neuroblastoma")
 library(plyr)
 counts <- ddply(neuroblastoma$annotations,.(profile.id),summarize,
       normal=sum(annotation=="normal"),

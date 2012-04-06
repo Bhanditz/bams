@@ -1,4 +1,4 @@
-data(neuroblastoma,package="bams")
+data(neuroblastoma,package="neuroblastoma")
 interesting <- "375"
 profile <- subset(neuroblastoma$profiles,profile.id==interesting)
 ann <- subset(neuroblastoma$annotations,profile.id==interesting)
@@ -22,9 +22,10 @@ bkpts <- ddply(smooth,.(chromosome,lambda),function(d){
   }),breakpoint!=0)
 })
 library(ggplot2)
+library(grid)
 llab <- function(var,val){
   if(var=="lambda")sprintf("lambda = %s",val)
-  else val
+  else as.character(val)
 }
 library(RColorBrewer)
 cols <- brewer.pal(7,"Set1")
@@ -46,8 +47,7 @@ p <- ggplot(smooth)+
   geom_vline(aes(xintercept=position/1e6),size=1,
              colour=smooth.col,linetype="dashed",data=bkpts)+
   theme_bw()+ # bioinformatics
-  opts(axis.title.x=theme_text(vjust = 0),
-       panel.margin=unit(0,"lines"))
+  opts(panel.margin=unit(0,"lines"))
 pdf("figure-smoothing.pdf",height=4.1,width=12)
 print(p)
 dev.off()

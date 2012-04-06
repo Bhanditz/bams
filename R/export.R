@@ -16,7 +16,7 @@ exportData <- function
 ### additional arguments for write.table
  ){
   if(is.null(data.list)){
-    data(neuroblastoma,package="bams")
+    data(neuroblastoma,package="neuroblastoma")
     data.list <- neuroblastoma
   }
   for(N in c("profiles","annotations")){

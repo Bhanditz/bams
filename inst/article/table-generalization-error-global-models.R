@@ -67,12 +67,16 @@ fpfn <- cbind(fpfn,seconds=sprintf("%.2f",sapply(seconds,median)[ord]))
 
 counts.percents <- fpfn
 library(xtable)
-notuning <- rownames(counts.percents)%in%
-  c("glad.default","dnacopy.default","cghseg.mBIC","cghFLasso")
-rownames(counts.percents)[notuning] <-
-  paste("*",rownames(counts.percents)[notuning],sep="")
+square.inches <- "0.08"
+rownames(counts.percents) <-
+  sprintf("%s \\textcolor{%s.color}{\\rule{%sin}{%sin}}",
+          rownames(counts.percents),
+          rownames(counts.percents),
+          square.inches,
+          square.inches)
+        
 xt <- xtable(counts.percents,align="r|rrr|rrr|r")
-tex <- print(xt,floating=FALSE,
+tex <- print(xt,floating=FALSE,sanitize.rownames.function=identity,
              include.rownames=TRUE,size="small")
 REP <- paste("\\hline &",
              "\\\\multicolumn{3}{c|}{Global} &",

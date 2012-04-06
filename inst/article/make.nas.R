@@ -7,7 +7,7 @@ counts <- sapply(processed.cids,function(cid){
 })
 processed.cids <- names(counts)[counts==max(counts)]
 library(bams)
-data(neuroblastoma,package="bams")
+data(neuroblastoma,package="neuroblastoma")
 all.cids <- levels(neuroblastoma$profiles$profile.id)
 to.process <- all.cids[!all.cids %in% processed.cids]
 algo <- "dnacopy.prune"

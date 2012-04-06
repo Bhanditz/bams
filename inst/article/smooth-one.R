@@ -1,4 +1,4 @@
-data(neuroblastoma,package="bams")
+data(neuroblastoma,package="neuroblastoma")
 clin.id <- commandArgs(trailingOnly=TRUE)
 one <- subset(neuroblastoma$profiles,profile.id==clin.id)
 these.labels <- subset(neuroblastoma$annotations,profile.id==clin.id)
