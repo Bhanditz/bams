@@ -48,7 +48,9 @@ each.chrom <- function
   mats <- lapply(chroms,function(pro){
     if(any(diff(pro$position) <= 0))
       stop("profile positions must be in strictly increasing order")
-    FUN(pro)
+    result <- FUN(pro)
+    stopifnot(is.matrix(result))
+    result
   })
   smooth.mat <- matrix(NA,nrow(mats[[1]]),nrow(profile))
   for(chr in names(mats)){
@@ -389,6 +391,32 @@ alpha2.vals=c(1e-5,1e-4,1e-3,5e-3,1e-2,2e-2,5e-2,
   runglad(profile,lambdabreak=lambdavals)
 },glad.MinBkpWeight=function(profile,wvals=2^seq(-12,3,l=30)){
   runglad(profile,MinBkpWeight=wvals)
+},gada=function(pro,Tvals=10^seq(-1,2,l=100)){
+  require(gada)
+  gen.info <- data.frame(probe=rownames(pro),
+                         chr=pro$chromosome,
+                         pos=pro$position)
+  gada.obj <- setupGADAgeneral(pro$logratio,gen.info=gen.info)
+  fit <- SBL(gada.obj,estim.sigma2=TRUE)
+  ## do all the elimination procedures in 1 go.
+  be.list <- lapply(Tvals,function(Tval){
+    BackwardElimination(fit,Tval,1)
+  })
+  each.chrom(pro,function(chr){
+    Y <- chr$logratio
+    chrName <- as.character(chr$chromosome)[1]
+    ## need to return mat[nparam,nprobes]
+    do.call(rbind,lapply(seq_along(Tvals),function(Tval.i){
+      be <- be.list[[Tval.i]]
+      names(be) <- as.character(attr(be,"chr"))
+      seg.df <- WextIextToSegments(be[[chrName]])
+      for(i in 1:nrow(seg.df)){
+        seg <- seg.df[i,]
+        Y[seg$IniProbe:seg$EndProbe] <- seg$MeanAmp
+      }
+      Y
+    }))
+  })
 ### DNAcopy seems to be the slowest, so do them last so the others
 ### will finish at least.
 },dnacopy.default=function(profile,param=1){

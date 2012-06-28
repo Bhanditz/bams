@@ -1,0 +1,14 @@
+1.2 --- 
+
+gada algorithm using gada package from R-Forge.
+
+1.1 --- 
+
+Separated neuroblastoma data set out into separate neuroblastoma
+package, so we take up less space on the CRAN server and we can submit
+more frequent updates.
+
+1.0 ---
+
+Initial release in support of "Learning smoothing models of copy
+number profiles using breakpoint annotations."

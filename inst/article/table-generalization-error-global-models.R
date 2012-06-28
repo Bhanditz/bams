@@ -4,6 +4,8 @@ library(bams)
 if("cghseg.mBIC" %in% names(all.stats)){
   print(with(estimate.test.error(all.stats$cghseg.mBIC),local-global))
 }
+cghseg.k.result <- estimate.test.error(all.stats$cghseg.k)
+cghseg.k.result$train
 results <- lapply(all.stats,estimate.test.error)
 ## compare local, hybrid, and global error rates
 print(sapply(results,function(stat)sapply(stat,function(x)mean(x[1,]))))
@@ -64,9 +66,27 @@ fpfn[1:length(fpfn)] <- sprintf("%3.1f",fpfn)
 ## add timings
 seconds <- lapply(all.stats,"[[","seconds")
 fpfn <- cbind(fpfn,seconds=sprintf("%.2f",sapply(seconds,median)[ord]))
-
-counts.percents <- fpfn
 library(xtable)
+## html code:
+## header <- readLines("header.html")
+## footer <- readLines("footer.html")
+## html.tab <- fpfn
+## html.xt <- xtable(html.tab,align="rrrrrrrr")
+## html <- print(html.xt,type="html",html.table.attributes="")
+## find <- "<TABLE >"
+## firstlines <- paste(c(find,
+##                       "<tr>",
+##                       "<td></td>",
+##                       "<th align=center colspan=3>global</th>",
+##                       "<th align=center colspan=3>local</th>",
+##                       "<th>Timings</th>",
+##                       "</tr>"),collapse="")
+## edited <- gsub(find,firstlines,html,fixed=TRUE)
+## with.header <- c(header,edited,footer)
+## cat(with.header,file="~/public_html/neuroblastoma/accuracy.html")
+
+## tex code:
+counts.percents <- fpfn
 square.inches <- "0.08"
 rownames(counts.percents) <-
   sprintf("%s \\textcolor{%s.color}{\\rule{%sin}{%sin}}",

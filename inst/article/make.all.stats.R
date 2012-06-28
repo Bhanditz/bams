@@ -16,6 +16,7 @@ processed.algos <- unique(unlist(lapply(nparams,names)))
 count.mat <- sapply(nparams,function(param.counts){
   param.counts[processed.algos]
 })
+count.mat[is.na(count.mat)] <- 0
 ## useful diagnostic == progress of the cluster
 count.vecs <- apply(count.mat,1,table)
 not.finished <- sapply(count.vecs,length)>1
@@ -26,7 +27,7 @@ processed.cids <- rownames(done.mat)[apply(done.mat,1,all)]
 data(neuroblastoma,package="neuroblastoma")
 all.cids <- levels(neuroblastoma$profiles$profile.id)
 to.process <- all.cids[!all.cids %in% processed.cids]
-print(count.mat[not.finished,to.process])
+print(count.mat[not.finished,to.process,drop=FALSE])
 
 ## we have figured out which ones need processing, now do it.
 profiles <- split(neuroblastoma$profiles,neuroblastoma$profiles$profile.id)

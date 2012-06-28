@@ -72,7 +72,7 @@ geom_tallrect <- function
                    position = position, ...)
 }
 
-pick.best.index <- function
+pick.best.index <- structure(function
 ### Minimizer for local models, described in article section 2.3
 ### "Picking the optimal model"
 (err
@@ -81,6 +81,9 @@ pick.best.index <- function
   nparam <- length(err)
   candidates <- which(err==min(err))
   if(length(err)==1)return(candidates)
+  st <- abs(median(candidates)-candidates)
+  middle <- candidates[which.min(st)]
+  if(all(diff(err)==0))return(middle)
   if(nparam %in% candidates && 1 %in% candidates){
     cat("Warning: strange error profile, picking something near the center\n")
     print(as.numeric(err))
@@ -88,18 +91,38 @@ pick.best.index <- function
     if(any(d)){
       which(d)[1]
     }else{
-      max(candidates)
+      middle
     }
   }else if(1 %in% candidates){
     max(candidates)
   }else if(nparam %in% candidates){
     min(candidates)
   }else {
-    st <- abs(median(candidates)-candidates)
-    candidates[which.min(st)]
+    middle
   }
 ### Integer index of the minimal error.
-}
+},ex=function(){
+  stopifnot(pick.best.index(rep(0,100))==50)
+
+  err <- rep(1,100)
+  err[5] <- 0
+  stopifnot(pick.best.index(err)==5)
+
+  ## should pick the middle
+  err <- rep(1,100)
+  err[40:60] <- 0
+  stopifnot(pick.best.index(err)==50)
+
+  ## should pick the biggest
+  err <- rep(1,100)
+  err[1:60] <- 0
+  stopifnot(pick.best.index(err)==60)
+
+  ## should pick the smallest
+  err <- rep(1,100)
+  err[50:100] <- 0
+  stopifnot(pick.best.index(err)==50)
+})
 
 estimate.test.error <- function
 ### Do leave-one-out cross-validation on chromosome arms.
@@ -118,11 +141,13 @@ estimate.test.error <- function
   rownames(global.loo) <- stat.names
   rownames(hybrid.loo) <- stat.names
   rownames(local.loo) <- stat.names
+  train.err.mat <-
+    matrix(NA,3,nfolds,dimnames=list(method=c("global","hybrid","local"),fold=NULL))
   for(fold in 1:nfolds){
 
     train.err <- rep(NA,nparam) ## global model
     for(j in 1:nparam){
-      train.err[j] <- mean(stats$errors[j,,-fold],na.rm=TRUE)
+      train.err[j] <- sum(stats$errors[j,,-fold],na.rm=TRUE)
     }
     ## save for hybrid approach
     global.train.err <-
@@ -132,9 +157,11 @@ estimate.test.error <- function
       global.loo[sn,fold] <-
         mean(stats[[sn]][global.picked,,fold],na.rm=TRUE)
     }
+    train.err.mat["global",fold] <- train.err[global.picked] ## for comparing train err
 
     ind.stats <- matrix(NA,nprof,length(stats))
     colnames(ind.stats) <- stat.names
+    hybrid.train.errors <- rep(NA,nprof)
     for(i in 1:nprof){ ## hybrid models
       train.err <-
         apply(stats$errors[,i,-fold,drop=FALSE],1,sum,na.rm=TRUE)
@@ -142,14 +169,17 @@ estimate.test.error <- function
       global.subset <- global.train.err[is.min,]
       hybrid.picked <-
         with(global.subset,param[which.min(train.err)])
+      hybrid.train.errors[i] <- train.err[hybrid.picked]
       for(sn in stat.names){ ## store test err for picked model
         ind.stats[i,sn] <- stats[[sn]][hybrid.picked,i,fold]
       }
     }
     hybrid.loo[,fold] <- colMeans(ind.stats,na.rm=TRUE)
+    train.err.mat["hybrid",fold] <- sum(hybrid.train.errors)
     
     ind.stats <- matrix(NA,nprof,length(stats))
     colnames(ind.stats) <- stat.names
+    local.train.errors <- rep(NA,nprof)
     for(i in 1:nprof){ ## local models
       train.err <-
         apply(stats$errors[,i,-fold,drop=FALSE],1,sum,na.rm=TRUE)
@@ -157,13 +187,16 @@ estimate.test.error <- function
       for(sn in stat.names){ ## store test err for picked model
         ind.stats[i,sn] <- stats[[sn]][local.picked,i,fold]
       }
+      local.train.errors[i] <- train.err[local.picked]
     }
     local.loo[,fold] <- colMeans(ind.stats,na.rm=TRUE)
+    train.err.mat["local",fold] <- sum(local.train.errors)
     
   }
   list(local=local.loo,
        hybrid=hybrid.loo,
-       global=global.loo)
+       global=global.loo,
+       train.err.mat=train.err.mat)
 ### Named list with elements local, hybrid, global, each a 3 x nfolds
 ### matrix.
 }
