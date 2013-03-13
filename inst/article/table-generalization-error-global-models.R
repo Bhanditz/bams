@@ -1,9 +1,85 @@
+estimate.test.error <- function
+### Do leave-one-out cross-validation on chromosome arms.
+(stats
+### Named list with arrays errors, false.positive, false.negative,
+### each of dim nparam x nprof x nfolds.
+ ){
+  stats <- stats[c("errors","false.positive","false.negative")]
+  nparam <- dim(stats$errors)[1]
+  nprof <- dim(stats$errors)[2]
+  nfolds <- dim(stats$errors)[3]
+  stat.names <- names(stats)
+  local.loo <- matrix(NA,length(stats),nfolds)
+  hybrid.loo <- matrix(NA,length(stats),nfolds)
+  global.loo <- matrix(NA,length(stats),nfolds)
+  rownames(global.loo) <- stat.names
+  rownames(hybrid.loo) <- stat.names
+  rownames(local.loo) <- stat.names
+  train.err.mat <-
+    matrix(NA,3,nfolds,dimnames=list(method=c("global","hybrid","local"),fold=NULL))
+  for(fold in 1:nfolds){
+
+    train.err <- rep(NA,nparam) ## global model
+    for(j in 1:nparam){
+      train.err[j] <- sum(stats$errors[j,,-fold],na.rm=TRUE)
+    }
+    ## save for hybrid approach
+    global.train.err <-
+      data.frame(train.err,param=1:length(train.err))
+    global.picked <- pick.best.index(train.err)
+    for(sn in stat.names){
+      global.loo[sn,fold] <-
+        mean(stats[[sn]][global.picked,,fold],na.rm=TRUE)
+    }
+    train.err.mat["global",fold] <- train.err[global.picked] ## for comparing train err
+
+    ind.stats <- matrix(NA,nprof,length(stats))
+    colnames(ind.stats) <- stat.names
+    hybrid.train.errors <- rep(NA,nprof)
+    for(i in 1:nprof){ ## hybrid models
+      train.err <-
+        apply(stats$errors[,i,-fold,drop=FALSE],1,sum,na.rm=TRUE)
+      is.min <- train.err == min(train.err)
+      global.subset <- global.train.err[is.min,]
+      hybrid.picked <-
+        with(global.subset,param[which.min(train.err)])
+      hybrid.train.errors[i] <- train.err[hybrid.picked]
+      for(sn in stat.names){ ## store test err for picked model
+        ind.stats[i,sn] <- stats[[sn]][hybrid.picked,i,fold]
+      }
+    }
+    hybrid.loo[,fold] <- colMeans(ind.stats,na.rm=TRUE)
+    train.err.mat["hybrid",fold] <- sum(hybrid.train.errors)
+    
+    ind.stats <- matrix(NA,nprof,length(stats))
+    colnames(ind.stats) <- stat.names
+    local.train.errors <- rep(NA,nprof)
+    for(i in 1:nprof){ ## local models
+      train.err <-
+        apply(stats$errors[,i,-fold,drop=FALSE],1,sum,na.rm=TRUE)
+      local.picked <- pick.best.index(train.err)
+      for(sn in stat.names){ ## store test err for picked model
+        ind.stats[i,sn] <- stats[[sn]][local.picked,i,fold]
+      }
+      local.train.errors[i] <- train.err[local.picked]
+    }
+    local.loo[,fold] <- colMeans(ind.stats,na.rm=TRUE)
+    train.err.mat["local",fold] <- sum(local.train.errors)
+    
+  }
+  list(local=local.loo,
+       hybrid=hybrid.loo,
+       global=global.loo,
+       train.err.mat=train.err.mat)
+### Named list with elements local, hybrid, global, each a 3 x nfolds
+### matrix.
+}
+
+
 load("zzz.stats.RData")
 library(bams)
-## OK: MBIC is the same for global and local.
-if("cghseg.mBIC" %in% names(all.stats)){
-  print(with(estimate.test.error(all.stats$cghseg.mBIC),local-global))
-}
+source("algos.in.tables.R")
+all.stats <- all.stats[algos.in.tables]
 cghseg.k.result <- estimate.test.error(all.stats$cghseg.k)
 cghseg.k.result$train
 results <- lapply(all.stats,estimate.test.error)

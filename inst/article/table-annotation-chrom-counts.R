@@ -4,7 +4,7 @@ minmax <- ddply(neuroblastoma$annotations,.(chromosome),head,1)[,c("min","max")]
 for(N in names(minmax)){
   minmax[[N]] <- sprintf("%.1f",minmax[[N]]/1e6)
 }
-colnames(minmax) <- c("min = $\\underline r_k$","max = $\\overline r_k$")
+colnames(minmax) <- c("min","max")
 library(reshape2)
 chrom.ann.counts <-
   dcast(neuroblastoma$annotations,chromosome~annotation,margins=TRUE)

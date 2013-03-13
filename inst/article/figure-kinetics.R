@@ -1,7 +1,11 @@
 library(bams)
 load("zzz.stats.RData")
 results <- data.frame()
-for(algorithm in c("cghseg.k","flsa.norm","dnacopy.sd","glad.lambdabreak")){
+display.names <- c(cghseg.k="cghseg.k, pelt.n",
+                   "flsa.norm","dnacopy.sd","glad.lambdabreak")
+blank <- names(display.names)==""
+names(display.names)[blank] <- display.names[blank]
+for(algorithm in names(display.names)){
   stat <- all.stats[[algorithm]]
   for(N in c(1:30)){
     set.seed(2)
@@ -10,16 +14,16 @@ for(algorithm in c("cghseg.k","flsa.norm","dnacopy.sd","glad.lambdabreak")){
                                         mean=apply(est,2,mean),
                                         sd=apply(est,2,sd),
                                         training.set.profiles=N,
-                                        algorithm))
+                                        algorithm=display.names[[algorithm]]))
   }
 }
 library(ggplot2)
 source("algo.colors.R")
 library(grid)
 algo.labels <- data.frame(training.set.profiles=29.5,
-                          mean=c(82.5,89.5,92.5,98.5),
+                          mean=c(82.5,89.5,92.5,99),
   algorithm=c("glad.lambdabreak","dnacopy.sd",
-    "flsa.norm","cghseg.k"))
+    "flsa.norm","cghseg.k, pelt.n"))
 p <- ggplot(subset(results,statistic=="errors"),
             aes(training.set.profiles,mean))+
   geom_vline(x=10)+
@@ -37,6 +41,6 @@ p <- ggplot(subset(results,statistic=="errors"),
   theme_bw()+
   geom_text(aes(colour=algorithm,label=algorithm),data=algo.labels,
             hjust=1)
-pdf("figure-kinetics.pdf",width=5.1,height=5.2)
+pdf("figure-5-kinetics.pdf",width=5.1,height=5.2)
 print(p)
 dev.off()

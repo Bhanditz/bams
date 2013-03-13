@@ -8,7 +8,7 @@ nparams <- sapply(processed.cids,function(cid){
   sapply(algos,function(a){
     f <- file.path(smoothdir,cid,a,"parameters.csv.gz")
     if(file.exists(f)){
-      length(scan(f,quiet=TRUE,what=1.2))
+      length(scan(f,quiet=TRUE,what="char"))
     }else 0
   })
 },simplify=FALSE)
@@ -49,7 +49,11 @@ chrom.order <- as.character(c(1,2,3,4,11,17))
 for(a in algos){
   print(a)
   f <- file.path(smoothdir,processed.cids[1],a,"parameters.csv.gz")
-  parameters <- scan(f,quiet=TRUE)
+  parameters <- tryCatch({
+    scan(f,quiet=TRUE)
+  },error=function(e){
+    scan(f,quiet=TRUE,what="char")
+  })
   param.names <- as.character(parameters)
   breakpoint.anns <-
     matrix(0,length(all.cids),length(chrom.order),
@@ -86,6 +90,8 @@ for(a in algos){
     false.positive[,cid,colnames(e)] <-
       ifelse(is.na(e),NA,ifelse(e & ann.mat=="normal",1L,0L))
   }
+  ## TODO: use "finished" file instead of checking for all these
+  ## files.
   readsecs <- function(cid){
     secfile <- file.path(smoothdir,cid,a,"seconds.csv.gz")
     scan(secfile,quiet=TRUE)

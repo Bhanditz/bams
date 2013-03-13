@@ -1,20 +1,20 @@
 \name{bams-package}
 \alias{bams-package}
+\alias{bams}
 \docType{package}
 \title{Breakpoint annotation model smoothing}
-\description{Data and code to allow
-reproduction of
-"Learning smoothing models with
-breakpoint annotations."}
+\description{Code and data to compare several change-point detection models
+on DNA copy number profiles.}
 \details{
 \tabular{ll}{Package: \tab bams\cr
-Maintainer: \tab Toby Dylan Hocking <toby.hocking@inria.fr>\cr
+Maintainer: \tab Toby Dylan Hocking <toby@sg.cs.titech.ac.jp>\cr
 Author: \tab Toby Dylan Hocking\cr
-Version: \tab 1.0\cr
+Version: \tab 1.6\cr
 License: \tab GPL-3\cr
 Title: \tab Breakpoint annotation model smoothing\cr
-Suggests: \tab GLAD, DNAcopy, xtable, cghFLasso, flsa, cghseg,
-plyr, ggplot2, RColorBrewer, reshape2, lattice\cr
+Suggests: \tab GLAD, DNAcopy, cghFLasso, flsa, cghseg, grid, gada,
+plyr, ggplot2 (>= 0.9.0), RColorBrewer, reshape2, lattice, proto,
+changepoint\cr
 Depends: \tab R (>= 2.10)\cr}
 }
 \author{Toby Dylan Hocking}

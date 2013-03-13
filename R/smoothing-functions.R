@@ -1,3 +1,89 @@
+
+
+fit.gada <- function
+### Run the first fitting steps of the gada algorithm.
+(pro
+### Profile data.frame.
+ ){
+  require(gada)
+  gen.info <- data.frame(probe=rownames(pro),
+                         chr=pro$chromosome,
+                         pos=pro$position)
+  gada.obj <- gada::setupGADAgeneral(pro$logratio,gen.info=gen.info)
+  gada::SBL(gada.obj,estim.sigma2=TRUE)
+}
+
+gada.results <- function
+### Recover a matrix of smoothed signals from the gada results.
+(pro,
+### Profile data.frame.
+ fit.list
+### List of gada results. Each gada result is a list, one element for
+### each chromosome.
+ ){
+  each.chrom(pro,function(chr){
+    Y <- chr$logratio
+    chrName <- as.character(chr$chromosome)[1]
+    ## need to return mat[nparam,nprobes]
+    do.call(rbind,lapply(fit.list,function(fit){
+      names(fit) <- as.character(attr(fit,"chr"))
+      seg.df <- WextIextToSegments(fit[[chrName]])
+      for(i in 1:nrow(seg.df)){
+        seg <- seg.df[i,]
+        Y[seg$IniProbe:seg$EndProbe] <- seg$MeanAmp
+      }
+      Y
+    }))
+  })
+}
+
+run.pelt <- function
+### Smooth a profile using the PELT algorithm.
+(profile,
+### A profile data.frame.
+ penalty="SIC",
+### character specifying the penalty to use.
+ values=0,
+### vector of penalty parameters to try.
+ FUN=cpt.mean,
+### PELT function to use.
+ format=NULL
+### if character, use sprintf(format, values) for values.
+ ){
+  require(changepoint)
+  if(is.character(format)){
+    values <- sprintf(format, values)
+  }
+  each.chrom(profile,function(chr){
+    Y <- chr$logratio
+    chr.mat <- do.call(rbind,lapply(values,function(value){
+      ##cat(sprintf("profile %s chr %s parameter %s\n",
+        ##          chr$profile.id[1],chr$chromosome[1],as.character(value)))
+      tryCatch({
+        result <- FUN(Y,method="PELT",penalty=penalty,pen.value=value)
+        ends <- result@cpts
+        starts <- c(1,ends[-length(ends)]+1)
+        for(i in seq_along(ends)){
+          end <- ends[i]
+          start <- starts[i]
+          Y[start:end] <- result@param.est$mean[i]
+        }
+        Y
+      },error=function(e){
+        rep(NA,length(Y))
+      })
+    }))
+    to.replace <- is.na(chr.mat[,1])
+    if(any(to.replace)){
+      last.ok <- max(which(!to.replace))
+      chr.mat[to.replace,] <-
+        matrix(chr.mat[last.ok,],sum(to.replace),ncol(chr.mat),byrow=TRUE)
+    }
+    chr.mat
+  })
+### Matrix of smoothed profiles: nparam x nprobes.
+}
+
 dnacopy.smoothvec <- function
 ### Smooth a profile using DNAcopy.
 (profile,
@@ -77,6 +163,7 @@ run.cghseg <- function
   require(cghseg)
   each.chrom(profile,function(chr){
     Y <- chr$logratio
+    pos.range <- range(chr$pos)
     n <- length(Y)
     ##if(chr$chromosome[1]=="4")browser()
     kmax <- min(20,n)#k is the number of SEGMENTS not BREAKPOINTS
@@ -87,9 +174,9 @@ run.cghseg <- function
       rupt <- matrix(ncol = 2, c(c(1, th[1:k - 1] + 1), th))
       d <- data.frame(k,begin = rupt[, 1], end = rupt[, 2],
                       mean = apply(rupt,1,function(z) mean(Y[z[1]:z[2]])))
-      transform(d,
-                position.begin=chr$position[begin],
-                position.end=chr$position[end])
+      d$position.begin <- chr$position[d$begin]
+      d$position.end <- chr$position[d$end]
+      d
     }))
     ## matrix( smoothing levels x positions )
     eachk <- split(const.lines,const.lines$k)
@@ -99,13 +186,39 @@ run.cghseg <- function
     }))
     best <- picker(smoothed.mat=smoothed.mat,
            const.lines=const.lines,
-           Y=Y,n=n,kmax=kmax)
+           Y=Y,n=n,kmax=kmax,l=pos.range[2]-pos.range[1])
     ##PROBLEM: what if chromosomes are discontiguous?? We NEED TO take
     ##the profile data frame apart more carefully.
     best
   })
 ### Smoothing matrix nparam x nprobes.
 }
+
+## ### Iterative isotonic regression.
+## iir.basic <- function(x,y,K){
+##   n <- length(x)
+##   res <- matrix(rep(0,n*K),ncol=K)
+##   u <- rep(0,n) ; b <- rep(0,n)
+##   for(k in 1:K){
+##     res.pava<- pava(y-b,long.out=T)
+##     u <- res.pava$y
+##     res.pava <- pava(y-u,long.out=T,decreasing=T)
+##     b <- res.pava$y
+##     res[,k] <- u+b
+##   }
+## return(res)
+## }
+
+## run.iir <- function(pro,...){
+## ### from
+## ###http://www.sites.univ-rennes2.fr/laboratoire-statistique/JEGOU/iir_1.0.tar.gz
+##   require(iir)
+##   each.chrom(pro,function(chr){
+##     if(chr$chromosome=="Y")return(t(chr$logratio))
+##     res <- with(chr,iir::iir(position,logratio,...))
+##     t(res$fitted)
+##   })
+## }
 
 ### This is a list of functions, each of which must return a matrix of
 ### smoothed profiles. The first argument of each function is a
@@ -117,7 +230,9 @@ run.cghseg <- function
 ### matrix returned has 1 row for each parameter, and 1 column for
 ### each position.
 smoothers <-
-  list(flsa=function(profile,
+  list(stat.ergo.alpha=function(profile,lambda){
+    
+  },flsa=function(profile,
 l2vals=c(1e-5,1e-4,1e-3,5e-3,1e-2,2e-2,5e-2,
                  10^seq(-1,2,l=100),
                  2e2,5e2,1e3,1e4,1e5,
@@ -128,6 +243,40 @@ l2vals=c(1e-5,1e-4,1e-3,5e-3,1e-2,2e-2,5e-2,
       model <- flsa(d$logratio)
       flsaGetSolution(model,lambda2=l2vals)
     })
+  },iir.aicc=function(pro,x=1){
+    run.iir(pro,criterion="aicc")
+  },iir.aic=function(pro,x=1){
+    run.iir(pro,criterion="aic")
+  },iir.bic=function(pro,x=1){
+    run.iir(pro,criterion="bic")
+  },iir.gcv=function(pro,x=1){
+    run.iir(pro,criterion="gcv")
+  },pelt.default=function(pro,values=0){
+    run.pelt(pro)
+  },pelt.meanvar.n=function(pro,values=10^seq(-2,1,l=100)){
+    run.pelt(pro,"Manual",values,cpt.meanvar,format="n*%.20f")
+  },pelt.meanvar=function(pro,values=10^seq(0,3,l=100)){
+    run.pelt(pro,"Manual",values,cpt.meanvar)
+  },pelt.n=function(pro,values=10^seq(-8,1,l=100)){
+    run.pelt(pro,"Manual",values,format="n*%.20f")
+  },pelt.diffparam=function(pro,
+      values=sprintf("diffparam*%.10f",10^seq(-2,1,l=100))){
+    run.pelt(pro,"Manual",values)
+  },pelt.manual=function(pro,values=10^seq(-2,1,l=100)){
+    run.pelt(pro,"Manual",values)
+  },pelt.asymptotic=function(pro,
+### for some profiles, for values <= 8e-2, we see
+
+###Error in PELT.mean.norm(data, value) : 
+###  NA/NaN/Inf in foreign function call (arg 4)
+###In addition: Warning message:
+###In log(log((1 - alpha + exp(-2 * (pi^(1/2)) * exp(blogn/alogn)))^(-1/(2 *  :
+###   NaNs produced
+
+### so lets check for this, and use the closest value if this happens.
+
+      values=c(1-10^seq(-20,-1,l=80),8*(10^seq(-1,-3,l=20)))){
+    run.pelt(pro,"Asymptotic",values)
   },flsa.norm=function(profile,
 alpha2.vals=c(1e-5,1e-4,1e-3,5e-3,1e-2,2e-2,5e-2,
                  10^seq(-1,2,l=100),
@@ -290,6 +439,112 @@ alpha2.vals=c(1e-5,1e-4,1e-3,5e-3,1e-2,2e-2,5e-2,
       smoothed.mat[which.min(average.residual + l*penalty),]
     }))
   })
+},cghseg.k.sqrt=function(profile,lambda=10^c(seq(-1,5,l=100))){
+### Simulations indicate that a factor of sqrt(d) is needed to correct
+### for number of points sampled, and 1/sqrt(l) is needed to correct
+### for signal size in base pairs.
+  run.cghseg(profile,function(kmax,Y,smoothed.mat,l,...){
+    total.residual <- rep(NA,kmax)
+    penalty <- rep(NA,kmax)
+    d <- length(Y)
+    for(k in 1:kmax){
+      total.residual[k] <- sum((Y-smoothed.mat[k,])^2)
+      penalty[k] <- k*sqrt(d/l)
+    }
+    do.call(rbind,lapply(lambda,function(l){
+      smoothed.mat[which.min(total.residual + l*penalty),]
+    }))
+  })
+},cghseg.k.var=function(profile,lambda=10^c(seq(-3,1,l=100))){
+### Simulations indicate that a factor of s.hat^2 is necessary to
+### correct for differences in scale of the samples.
+  run.cghseg(profile,function(kmax,Y,smoothed.mat,...){
+    total.residual <- rep(NA,kmax)
+    penalty <- rep(NA,kmax)
+    d <- length(Y)
+    s.hat <- median(abs(diff(Y)))
+    for(k in 1:kmax){
+      total.residual[k] <- sum((Y-smoothed.mat[k,])^2)
+      penalty[k] <- k*d*(s.hat^2)
+    }
+    do.call(rbind,lapply(lambda,function(l){
+      smoothed.mat[which.min(total.residual + l*penalty),]
+    }))
+  })
+},cghseg.k.sqrt.var=function(profile,lambda=10^c(seq(2,7,l=100))){
+### Try using all 3 corrections shown to be beneficial in simulations:
+### density d, base pairs length l, and scale s.hat.
+  run.cghseg(profile,function(kmax,Y,smoothed.mat,l,...){
+    total.residual <- rep(NA,kmax)
+    penalty <- rep(NA,kmax)
+    d <- length(Y)
+    s.hat <- median(abs(diff(Y)))
+    for(k in 1:kmax){
+      total.residual[k] <- sum((Y-smoothed.mat[k,])^2)
+      penalty[k] <- k*sqrt(d/l)*(s.hat^2)
+    }
+    do.call(rbind,lapply(lambda,function(l){
+      smoothed.mat[which.min(total.residual + l*penalty),]
+    }))
+  })
+},cghseg.k.sqrt.d=function(profile,lambda=10^c(seq(-3,0,l=100))){
+### Use sqrt(d) instead of d in cghseg.k
+  run.cghseg(profile,function(kmax,Y,smoothed.mat,...){
+    total.residual <- rep(NA,kmax)
+    penalty <- rep(NA,kmax)
+    d <- length(Y)
+    s.hat <- median(abs(diff(Y)))
+    for(k in 1:kmax){
+      total.residual[k] <- sum((Y-smoothed.mat[k,])^2)
+      penalty[k] <- k*sqrt(d)
+    }
+    do.call(rbind,lapply(lambda,function(l){
+      smoothed.mat[which.min(total.residual + l*penalty),]
+    }))
+  })
+},cghseg.k.sqrt.d.var=function(profile,lambda=10^c(seq(-1,3,l=100))){
+### Use the sqrt(d) correction with the scale correction.
+  run.cghseg(profile,function(kmax,Y,smoothed.mat,...){
+    total.residual <- rep(NA,kmax)
+    penalty <- rep(NA,kmax)
+    d <- length(Y)
+    s.hat <- median(abs(diff(Y)))
+    for(k in 1:kmax){
+      total.residual[k] <- sum((Y-smoothed.mat[k,])^2)
+      penalty[k] <- k*sqrt(d)*(s.hat^2)
+    }
+    do.call(rbind,lapply(lambda,function(l){
+      smoothed.mat[which.min(total.residual + l*penalty),]
+    }))
+  })
+},cghseg.k1=function(profile,lambda=10^c(seq(-8,1,l=100))){
+### From Lavielle 2005 p.8, where he suggests to use average squared
+### residual + beta*(number of segments)
+  run.cghseg(profile,function(kmax,Y,smoothed.mat,...){
+    average.residual <- rep(NA,kmax)
+    penalty <- rep(NA,kmax)
+    for(k in 1:kmax){
+      average.residual[k] <- mean((Y-smoothed.mat[k,])^2)
+      penalty[k] <- k - 1
+    }
+    do.call(rbind,lapply(lambda,function(l){
+      smoothed.mat[which.min(average.residual + l*penalty),]
+    }))
+  })
+},cghseg.k.less=function(profile,lambda=10^c(seq(-4,-1,l=10))){
+### From Lavielle 2005 p.8, where he suggests to use average squared
+### residual + beta*(number of segments)
+  run.cghseg(profile,function(kmax,Y,smoothed.mat,...){
+    average.residual <- rep(NA,kmax)
+    penalty <- rep(NA,kmax)
+    for(k in 1:kmax){
+      average.residual[k] <- mean((Y-smoothed.mat[k,])^2)
+      penalty[k] <- k
+    }
+    do.call(rbind,lapply(lambda,function(l){
+      smoothed.mat[which.min(average.residual + l*penalty),]
+    }))
+  })
 },cghseg.resid.corr=function(profile,lambda=10^c(seq(-8,1,l=100))){
 ### Use correletion coefficient of neighboring residuals instead of
 ### average squared residual.
@@ -392,33 +647,15 @@ alpha2.vals=c(1e-5,1e-4,1e-3,5e-3,1e-2,2e-2,5e-2,
 },glad.MinBkpWeight=function(profile,wvals=2^seq(-12,3,l=30)){
   runglad(profile,MinBkpWeight=wvals)
 },gada=function(pro,Tvals=10^seq(-1,2,l=100)){
-  require(gada)
-  gen.info <- data.frame(probe=rownames(pro),
-                         chr=pro$chromosome,
-                         pos=pro$position)
-  gada.obj <- setupGADAgeneral(pro$logratio,gen.info=gen.info)
-  fit <- SBL(gada.obj,estim.sigma2=TRUE)
+  fit <- fit.gada(pro)
   ## do all the elimination procedures in 1 go.
   be.list <- lapply(Tvals,function(Tval){
     BackwardElimination(fit,Tval,1)
   })
-  each.chrom(pro,function(chr){
-    Y <- chr$logratio
-    chrName <- as.character(chr$chromosome)[1]
-    ## need to return mat[nparam,nprobes]
-    do.call(rbind,lapply(seq_along(Tvals),function(Tval.i){
-      be <- be.list[[Tval.i]]
-      names(be) <- as.character(attr(be,"chr"))
-      seg.df <- WextIextToSegments(be[[chrName]])
-      for(i in 1:nrow(seg.df)){
-        seg <- seg.df[i,]
-        Y[seg$IniProbe:seg$EndProbe] <- seg$MeanAmp
-      }
-      Y
-    }))
-  })
-### DNAcopy seems to be the slowest, so do them last so the others
-### will finish at least.
+  gada.results(pro,be.list)
+},gada.default=function(pro,param=0){
+  fit <- fit.gada(pro)
+  gada.results(pro,list(fit))
 },dnacopy.default=function(profile,param=1){
   dnacopy.smoothvec(profile,"undo.SD",3)
 },dnacopy.sd=function(profile,
@@ -440,12 +677,11 @@ runglad <- function
   require(GLAD)
   L <- list(...)
   vals <- L[[1]]
-  x <- transform(profile,
-                 PosOrder=seq_along(position),
-                 LogRatio=logratio,
-                 PosBase=position,
-                 Chromosome=chromosome)
-  cgh <- as.profileCGH(x)
+  profile$PosOrder <- seq_along(profile$position)
+  profile$LogRatio <- profile$logratio
+  profile$PosBase <- profile$position
+  profile$Chromosome <- profile$chromosome
+  cgh <- as.profileCGH(profile)
   smooth.vecs <- lapply(vals,function(v){
     args <- list(profileCGH=cgh,v)
     names(args)[2] <- names(L)[1]
@@ -462,35 +698,16 @@ runglad <- function
 ### Smoothing matrix nparam x nprobes.
 }
 
-several.breakpoints <- function
-### Zero-one loss when breakpoint annotations are considered to mean
-### presence of 1 or more breakpoints.
-(counts,
-### Counts of breakpoints of model.
- anns
-### Annotations.
- ){
-  ifelse(anns=="normal",
-         ifelse(counts==0,0L,1L), ## normal
-         ifelse(counts>0,0L,1L)) ## breakpoint
-### Matrix of 0 and 1.
-}
-
-run.smoothers <- function
-### Run several smoothers on a profile, quantifying agreement of the
-### smoother with breakpoint annotations.
+seg.profile <- function
+### Run several smoothers on a profile, saving the detected breakpoint
+### locations to disk.
 (profile,
 ### Profile data.frame.
- breakpoint.labels,
-### Annotation data.frame.
  smooth.funs=smoothers,
 ### List of smoothing functions to apply to the profile.
- loss=several.breakpoints,
-### Loss function of (breakpoint counts,labels) --- both matrices
-### nparam x nlabels, and should return numeric matrix of same size.
- tosave=c("errors","seconds","parameters","breakpoint.labels"),
+ tosave=c("seconds","parameters","breakpoints"),
 ### Variables to save to the db directory.
- db=file.path(Sys.getenv("HOME"),"smooth")
+ db=file.path(Sys.getenv("HOME"),"seg")
 ### Location to save gzipped result files.
  ){
   stopifnot(is.data.frame(profile))
@@ -503,9 +720,6 @@ run.smoothers <- function
       stop("some repeated positions were found! most algorithms will break!")
     }
   }
-  stopifnot(is.data.frame(breakpoint.labels))
-  breakpoint.labels <- subset(breakpoint.labels,!is.na(annotation))
-  if(nrow(breakpoint.labels)==0)stop("need at least 1 annotation")
   stopifnot(is.list(smooth.funs))
   if(is.null(names(smooth.funs)))stop("smooth.funs need to be named")
   if(any(nchar(names(smooth.funs))==0))stop("all smooth.funs need names")
@@ -522,19 +736,24 @@ run.smoothers <- function
     stopifnot(ncol(smoothed.profiles)==nrow(profile))
     stopifnot(nrow(smoothed.profiles)==length(parameters))
 
-    bpts <- matrix(NA,length(parameters),nrow(breakpoint.labels))
-    blabs <- matrix(NA,length(parameters),nrow(breakpoint.labels))
-    pos <- profile$position
-    for(i in 1:nrow(breakpoint.labels)){
-      l <- breakpoint.labels[i,]
-      probes <- l$min < pos & pos < l$max & profile$chromosome==l$chromosome
-      smoothed.region <- smoothed.profiles[,probes,drop=FALSE]
-      bpts[,i] <- apply(smoothed.region,1,function(x)sum(diff(x)!=0))
-      blabs[,i] <- as.character(l$annotation)
+    breakpoints <- data.frame() #param,chr,base
+    pro.list <- split(profile,profile$chr)
+    smooth.list <- split(data.frame(t(smoothed.profiles)),profile$chr)
+    for(param.i in seq_along(parameters)){
+      param <- parameters[[param.i]]
+      for(chr in names(pro.list)){
+        pro <- pro.list[[chr]]
+        sm <- smooth.list[[chr]]
+        yhat <- sm[,param.i]
+        break.after <- which(diff(yhat)!=0)
+        if(length(break.after)){
+          base <- floor((pro$pos[break.after]+pro$pos[break.after+1])/2)
+          breakpoints <- rbind(breakpoints,{
+            data.frame(param, chr, base)
+          })
+        }
+      }
     }
-    print(bpts)
-
-    errors <- loss(bpts,blabs)
 
     for(varname in tosave){
       if(varname %in% ls()){

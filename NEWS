@@ -1,3 +1,21 @@
+1.6 --- 3 Mar 2013
+
+more revisions... seg.profile function to save breakpoints and
+segments to disk, so then we can later judge agreement with several
+databases of annotations.
+
+1.5 --- 28 Jan 2013
+
+article revised after BMC reviews.
+
+1.4 --- 9 July 2012
+
+article redone for bmc format.
+
+1.3 --- 5 July 2012
+
+pelt algorithms, with pelt.n shown to be equivalent to cghseg.k.
+
 1.2 --- 
 
 gada algorithm using gada package from R-Forge.

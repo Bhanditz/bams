@@ -1,7 +1,9 @@
 load("zzz.stats.RData")
-library(bams)
+library(bams) 
 roc <- data.frame()
-for(algorithm in names(all.stats)){
+source("algo.colors.R")
+display.algos <- intersect(names(algo.colors),names(all.stats))
+for(algorithm in display.algos){
   stat <- all.stats[[algorithm]]
   normal.anns <- sum(stat$normal.anns)
   breakpoint.anns <- sum(stat$breakpoint.anns)
@@ -18,8 +20,11 @@ for(algorithm in names(all.stats)){
                   cghFLasso="optimization",
                   flsa="optimization",
                   cghseg="optimization",
+                  pelt="optimization",
+                  gada="dnacopy",
                   class)
   class <- gsub("optimization","optimization-based models",class)
+  class <- gsub("dnacopy","approximate optimization",class)
   best.i <- pick.best.index(errors)
   best <- rep(FALSE,length(errors))
   best[best.i] <- TRUE
@@ -55,8 +60,12 @@ colordots$vjust <- 1.1
 colordots$label <- as.character(colordots$algorithm)
 change <- list(hjust=c(dnacopy.alpha=1.1,glad.haarseg=0.5,flsa=-0.5,
                  glad.MinBkpWeight=0.5,dnacopy.default=0.9,
+                 pelt.default=-0.5,
+                 pelt.n=0.1,
                  cghseg.mBIC=1,cghseg.k=0.05),
-               vjust=c(dnacopy.alpha=0,glad.haarseg=-3,
+               vjust=c(dnacopy.alpha=-0.1,glad.haarseg=-3,
+                 gada=1.5,
+                 pelt.n=-3.3,
                  glad.MinBkpWeight=5,dnacopy.default=1.7,cghseg.k=-4.7),
                label=c(flsa.norm=" flsa\nnorm",
                  dnacopy.default=" dnacopy\ndefault"))
@@ -73,6 +82,7 @@ library(ggplot2)
 library(grid)
 dotsize <- 6
 text.cex <- 4
+curves <- subset(curves,algorithm!="pelt.n")
 p <- ggplot(roc,aes(FPR,TPR))+
   facet_grid(.~class)+
   geom_path(aes(colour=algorithm),data=curves,lwd=1.5)+
@@ -92,6 +102,6 @@ p <- ggplot(roc,aes(FPR,TPR))+
                      breaks=seq(0.5,1,by=0.1))+
   theme_bw()+
   scale_colour_manual(values=algo.colors,guide="none")
-pdf("figure-roc.pdf",width=10,height=4)
+pdf("figure-3-roc.pdf",width=10,height=4)
 print(p)
 dev.off()
